@@ -25,3 +25,4 @@ yarn-error.log*
 amplify
 
 src/aws-exports.js
+packaged.yml

@@ -1,0 +1,77 @@
+# photo_processor/template.yml
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    photo_processor
+    Sample SAM Template for photo_processor
+Parameters:
+    S3UserfilesBucketArn:
+        Type: String
+    DynamoDBPhotosTableArn:
+        Type: String 
+    
+Globals:
+    Function:
+        Timeout: 10
+Resources:
+    PhotoProcessorFunctionIamRole: 
+        Type: "AWS::IAM::Role"
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    - 
+                        Effect: Allow
+                        Principal:
+                            Service: [lambda.amazonaws.com]
+                        Action: ["sts:AssumeRole"]
+            ManagedPolicyArns: ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
+            Path: "/"
+            Policies: 
+                - 
+                    PolicyName: "AllPrivsForPhotoAlbumUserfilesBucket"
+                    PolicyDocument: 
+                        Version: "2012-10-17"
+                        Statement: 
+                            -
+                                Effect: "Allow"
+                                Action: "s3:*"
+                                Resource: !Join ["/", [!Ref S3UserfilesBucketArn, "*"]]
+
+                - 
+                    PolicyName: "AllPrivsForDynamo"
+                    PolicyDocument: 
+                        Version: "2012-10-17"
+                        Statement: 
+                            -
+                                Effect: "Allow"
+                                Action: "dynamodb:*"
+                                Resource: 
+                                    - !Ref DynamoDBPhotosTableArn
+    PhotoProcessorFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            CodeUri: src/
+            Handler: app.lambda_handler
+            Role: !GetAtt PhotoProcessorFunctionIamRole.Arn
+            Runtime: nodejs8.10
+            Environment:
+                Variables:
+                    THUMBNAIL_WIDTH: 80
+                    THUMBNAIL_HEIGHT: 80
+                    DYNAMODB_PHOTOS_TABLE_ARN: !Ref DynamoDBPhotosTableArn
+    BucketPermission:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: 'lambda:InvokeFunction'
+            FunctionName: !Ref PhotoProcessorFunction
+            Principal: s3.amazonaws.com
+            SourceAccount: !Ref "AWS::AccountId"
+            SourceArn: !Ref S3UserfilesBucketArn
+Outputs:
+    PhotoProcessorFunction:
+      Description: "Photo Processor Lambda Function ARN"
+      Value: !GetAtt PhotoProcessorFunction.Arn
+    PhotoProcessorFunctionIamRole:
+      Description: "IAM Role created for Photo Processor function"
+      Value: !GetAtt PhotoProcessorFunctionIamRole.Arn
