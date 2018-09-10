@@ -1,0 +1,22 @@
+# amplify/backend/api/photo-albums/schema.graphql
+
+type Album @model {
+  id: ID!
+  name: String!
+  owner: String
+  photos: [Photo] @connection(name: "AlbumPhotos")
+}
+
+type Photo @model {
+  id: ID!
+  album: Album @connection(name: "AlbumPhotos")
+  bucket: String!
+  fullsize: PhotoS3Info!
+  thumbnail: PhotoS3Info!
+}
+
+type PhotoS3Info {
+    key: String!
+    width: Int!
+    height: Int!
+}

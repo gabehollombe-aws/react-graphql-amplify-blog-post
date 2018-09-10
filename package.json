@@ -1,0 +1,20 @@
+{
+  "name": "photo-albums",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "aws-amplify": "^1.0.8",
+    "aws-amplify-react": "^2.0.0",
+    "react": "^16.4.2",
+    "react-dom": "^16.4.2",
+    "react-scripts": "1.1.5",
+    "semantic-ui-react": "^0.82.3"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject",
+    "bootstrap": "scripts/bootstrapping/bootstrap_app.sh"
+  }
+}
