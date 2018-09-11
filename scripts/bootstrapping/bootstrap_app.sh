@@ -47,7 +47,13 @@ DynamoDBPhotosTableArn=$PHOTOS_TABLE_ARN || true
 popd
 
 # Trigger photo_processor when uploads go into storage bucket
-$(node --experimental-modules configureS3LambdaTrigger.mjs $STACK_NAME)
+node --experimental-modules configureS3LambdaTrigger.mjs $STACK_NAME
+
+# Deny S3 ListBucket to authed users
+node --experimental-modules addExplicitListBucketDenyToAuthRole.mjs
+
+# Update the PhotoTable GSI
+node --experimental-modules updatePhotoTableGsi.mjs
 
 # Update AppSync
 node --experimental-modules updateAppSync.mjs

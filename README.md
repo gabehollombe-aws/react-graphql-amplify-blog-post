@@ -27,7 +27,7 @@ Answer the questions like this:
 - Start Command: `npm run-script start`
 - Do you want to use an AWS profile? `<either answer is fine, it's up to you>`
 
-Wait for `amplify init` to finish ...
+Wait for `amplify init` to finish
 
 ### 2. Add authentication
 Run: `amplify auth add`
@@ -35,7 +35,7 @@ Run: `amplify auth add`
 Answer the questions like this:
 -  Do you want to use the default authentication and security configuration? `Yes, use the default configuration.`
 
-Run `amplify push`, Press `Enter/Return` to continue, and wait for it to finish ...
+Run `amplify push`, Press `Enter/Return` to continue, and wait for it to finish
 
 ### 3. Add a GraphQL API
 Run: `amplify api add`
@@ -47,7 +47,7 @@ Answer the questions like this:
 - Do you have an annotated GraphQL schema? `Yes`
 - Provide your schema file path: `scripts/bootstrapping/schema.graphql`
 
-Run `amplify push`, Press `Enter/Return` to continue, and wait for it to finish ...
+Run `amplify push`, Press `Enter/Return` to continue, and wait for it to finish
 
 ### 4. Add S3 file storage
 Run: `amplify storage add`
@@ -59,21 +59,36 @@ Answer the questions like this:
 - Who should have access: `Auth users only`
 - What kind of access do you want for Authenticated users `read/write`
 
-Run `amplify push`, Press `Enter/Return` to continue, and wait for it to finish ...
+Run `amplify push`, Press `Enter/Return` to continue, and wait for it to finish
 
-### 5. Run a script to update some of the AWS resources for this codebase
+### 5. Publish the app to the CloudFront CDN
+Run `amplify hosting add`
+
+Answer the questions like this:
+- Select the environment setup: `PROD (S3 with CloudFront using HTTPS)`
+- hosting bucket name `<accept the default>`
+- index doc for the website `index.html`
+- error doc for the website `index.html`
+
+Run `amplify push`, Press `Enter/Return` to continue, and wait for it to finish
+
+Run `amplify publish` and wait for it to finish
+
+### 6. Run the bootstrapping script to update some of the AWS resources for this codebase
 Run: `npm run bootstrap`
 
 **What this script does:** 
 - Runs `npm install` for the React app as well as the `photo_processor` Lambda function
-- Looks up values for resources created by the Amplify CLI commands from above and uses them to package and deploy the `photo_processor` Lambda function
-- Looks up the API ID of your AppSync API that Amplify created and updates resolvers to be in-line with what this codebase expects (so you don't need to make manual changes to the Resolvers in the AppSync web console). 
+- Packages and deploys the `photo_processor` Lambda function, configuring it to trigger when new photos are uploaded to the S3 bucket used for storage configured by Amplify
+- Updates the AppSync API schema and resolvers to be in-line with what this codebase expects (so you don't need to make manual changes in the AppSync web console). 
+- Adds an explicit `Deny` on `s3:ListBucket` for the IAM role associated with authenticated users in the app
+- Re-creates a Global Secondary Index on the DynamoDB table used for the PhotoTable AppSync data source to allow fetching items in reverse chronological order
 
 Notes:
 - Ths script uses credentials stored in ~/.aws/credentials (macOS/Linux) or C:\Users\USER_NAME\.aws\credentials (Windows). 
 - If you have a specific AWS credentials profile you want to use, prefix the command with AWS_PROFILE=name-of-profile
 - It requires Node.js version 8 or higher and Docker to be installed
 
-### 6. Start the app
+### 7. Start the app
 
 Run `npm start` to start the app. Hopefully, everything should work at this point. :)

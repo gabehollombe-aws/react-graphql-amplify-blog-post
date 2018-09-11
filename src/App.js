@@ -4,7 +4,7 @@ import { withAuthenticator } from 'aws-amplify-react';
 import { Connect } from 'aws-amplify-react';
 import { S3Image } from 'aws-amplify-react';
 import Amplify, { API, graphqlOperation, Storage } from 'aws-amplify';
-import { Divider, Form, Grid, Header, Input, List, Segment } from 'semantic-ui-react';
+import { Divider, Form, Grid, Header, Icon, Input, List, Segment } from 'semantic-ui-react';
 import {BrowserRouter as Router, Route, NavLink} from 'react-router-dom';
 import {v4 as uuid} from 'uuid';
 
@@ -45,11 +45,13 @@ const SubscribeToNewAlbums = `
   }
 `;
 
-const GetAlbum = `query GetAlbum($id: ID!) {
+const GetAlbum = `query GetAlbum($id: ID!, $nextTokenForPhotos: String) {
   getAlbum(id: $id) {
     id
     name
-    photos {
+    members
+    photos(sortDirection: DESC, nextToken: $nextTokenForPhotos) {
+      nextToken
       items {
         thumbnail {
           width
@@ -57,7 +59,6 @@ const GetAlbum = `query GetAlbum($id: ID!) {
           key
         }
       }
-      nextToken
     }
   }
 }
@@ -160,28 +161,75 @@ class NewAlbum extends Component {
 
 
 class AlbumDetailsLoader extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      nextTokenForPhotos: null,
+      hasMorePhotos: true,
+      album: null,
+      loading: true
+    }
+  }
+
+  async loadMorePhotos() {
+    if (!this.state.hasMorePhotos) return;
+
+    this.setState({ loading: true });
+    const { data } = await API.graphql(graphqlOperation(GetAlbum, {id: this.props.id, nextTokenForPhotos: this.state.nextTokenForPhotos}));
+    let album;
+
+    if (this.state.album === null) {
+      album = data.getAlbum;
+    } else {
+      album = this.state.album;
+      album.photos.items = album.photos.items.concat(data.getAlbum.photos.items);
+    }
+
+    this.setState({ 
+      album: album,
+      loading: false,
+      nextTokenForPhotos: data.getAlbum.photos.nextToken,
+      hasMorePhotos: data.getAlbum.photos.nextToken !== null
+    });
+  }
+
+  componentDidMount() {
+    this.loadMorePhotos();
+  }
+
   render() {
-    return (
-      <Connect query={graphqlOperation(GetAlbum, { id: this.props.id })}>
-        {({ data, loading, errors }) => {
-          if (loading) { return <div>Loading...</div>; }
-          if (errors.length > 0) { return <div>{JSON.stringify(errors)}</div>; }
-          if (!data.getAlbum) return;
-          return <AlbumDetails album={data.getAlbum} />;
-        }}
-      </Connect>
-    );
+    return <AlbumDetails loadingPhotos={this.state.loading} album={this.state.album} loadMorePhotos={this.loadMorePhotos.bind(this)} hasMorePhotos={this.state.hasMorePhotos}/>;
   }
 }
 
 
 class AlbumDetails extends Component {
   render() {
+    if (!this.props.album) return 'Loading album...';
     return (
       <Segment>
         <Header as='h3'>{this.props.album.name}</Header>
+
+        <Segment.Group>
+          <Segment>
+            <AlbumMembers members={this.props.album.members} />
+          </Segment>
+          <Segment basic>
+            <AddUsernameToAlbum albumId={this.props.album.id} />
+          </Segment>
+        </Segment.Group>
+
         <S3ImageUpload albumId={this.props.album.id}/>        
         <PhotosList photos={this.props.album.photos.items} />
+        {
+          this.props.hasMorePhotos && 
+          <Form.Button
+            onClick={this.props.loadMorePhotos}
+            icon='refresh'
+            disabled={this.props.loadingPhotos}
+            content={this.props.loadingPhotos ? 'Loading...' : 'Load more photos'}
+          />
+        }
       </Segment>
     )
   }
@@ -194,6 +242,7 @@ class S3ImageUpload extends React.Component {
     super(props);
     this.state = { uploading: false }
   }
+
   onChange = async (e) => {
     const file = e.target.files[0];
     const fileName = uuid();
@@ -209,6 +258,7 @@ class S3ImageUpload extends React.Component {
     console.log('Uploaded file: ', result);
     this.setState({uploading: false});
   }
+
   render() {
     return (
       <div>
@@ -241,6 +291,7 @@ class PhotosList extends React.Component {
       />
     );
   }
+
   render() {
     return (
       <div>
@@ -250,6 +301,57 @@ class PhotosList extends React.Component {
     );
   }
 }
+
+
+class AddUsernameToAlbum extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { username: '' };
+  }
+
+  handleChange = (e, { name, value }) => this.setState({ [name]: value })
+
+  handleSubmit = async (event) => {
+    event.preventDefault();
+    const AddUsernameToAlbum = `
+      mutation AddUsernameToAlbum($username: String!, $albumId: String!) {
+          addUsernameToAlbum(username: $username, albumId: $albumId) {
+              id
+          }
+      }`;
+    const result = await API.graphql(graphqlOperation(AddUsernameToAlbum, { username: this.state.username, albumId: this.props.albumId }));
+    console.log(`Added ${this.state.username} to album id ${result.data.addUsernameToAlbum.id}`);
+    this.setState({ username: '' });
+  }
+
+  render() {
+    return (
+      <Input
+        type='text'
+        placeholder='Username'
+        icon='user plus'
+        iconPosition='left'
+        action={{ content: 'Add', onClick: this.handleSubmit }}
+        name='username'
+        value={this.state.username}
+        onChange={this.handleChange}
+      />
+    )
+  }
+}
+
+
+const AlbumMembers = (props) => (
+  <div>
+    <Header as='h4'>
+      <Icon name='user circle' />
+      <Header.Content>Members</Header.Content>
+    </Header>
+    <List bulleted>
+        {props.members && props.members.map((member) => <List.Item key={member}>{member}</List.Item>)}
+    </List>
+  </div>
+);
 
 
 class App extends Component {
